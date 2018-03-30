@@ -1,6 +1,6 @@
 /*=========================================================================
 
-  Program:   ParaViewGIS
+  Program:   ParaViewGeo
   Module:    pvgMainWindow.cxx
 
   Copyright (c) 2018, Kitware Inc.
