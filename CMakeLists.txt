@@ -80,4 +80,5 @@ build_paraview_client(
     ${PVGIS_RESOURCES_DIR}/XML/pvgSources.xml
   SOURCES ${PVGIS_SRC_FILES}
 )
-target_link_libraries(${PROJECT_NAME} LINK_PRIVATE ${Qt_Targets})
+target_link_libraries(${PROJECT_NAME} 
+  LINK_PRIVATE ${Qt_Targets} ${VTK_LIBRARIES})

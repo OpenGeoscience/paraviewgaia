@@ -23,17 +23,22 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // ParaView includes
 #include <pqObjectBuilder.h>
-#include <pqPipelineFilter.h>
 #include <pqPipelineSource.h>
 #include <pqUndoStack.h>
-#include <vtkSMSessionProxyManager.h>
-#include <vtkSMProxy.h>
 #include <vtkSMSourceProxy.h>
 #include <vtkPVDataInformation.h>
 #include <vtkDataObjectAlgorithm.h>
 #include <pqActiveObjects.h>
 #include <vtkTrivialProducer.h>
 #include <pqDeleteReaction.h>
+
+// VTK includes
+#include <vtkTrivialProducer.h>
+#include <vtkGeoProjection.h>
+#include <vtkGeoTransform.h>
+#include <vtkTransformFilter.h>
+#include <vtkRasterReprojectionFilter.h>
+#include <vtkImageData.h>
 
 // Qt includes
 #include <QDebug>
@@ -83,18 +88,28 @@ void pvgLoadDataReaction::createTrivialProducer(pqPipelineSource* source)
   p->UpdatePipeline();
   vtkDataObjectAlgorithm* d = vtkDataObjectAlgorithm::SafeDownCast(source->getProxy()->GetClientSideObject());
   qDebug() << source->getSMName() << source->getSourceProxy()->GetXMLName() << source->getSourceProxy()->GetDataInformation()->GetDataSetType() << d->GetClassName() << d->GetOutput()->GetClassName();
+
+  vtkDataObject* dobj = nullptr;
   switch(p->GetDataInformation()->GetDataSetType())
   {
     case VTK_IMAGE_DATA:
     case VTK_UNIFORM_GRID:
+    {
+      vtkNew<vtkRasterReprojectionFilter> rrf;
+      rrf->SetInputConnection(d->GetOutputPort());
+      rrf->SetOutputProjection("EPSG:3857");
+      rrf->Update();
+      dobj = rrf->GetOutput();
       break;
+    }
     default:
+//      vtkNew<vtkGeoProjection> gcs;
+//      vtkNew<vtkGeoProjection> ocs;
+//      if (
+//      vtkNew<vtkTransformFilter> tf;
       break;
   }
 
-  QString xmlname("TrivialProducer");
-  QString xmlgroup("sources");
-  BEGIN_UNDO_SET(QString("Create '%1'").arg(xmlname));
   //pqPipelineSource* filter =
   //  builder->createFilter(xmlgroup, xmlname, source);
   pqServer* server = pqActiveObjects::instance().activeServer();
@@ -104,12 +119,25 @@ void pvgLoadDataReaction::createTrivialProducer(pqPipelineSource* source)
     return;
   }
 
+  QString xmlname("TrivialProducer");
+  QString xmlgroup("sources");
+  BEGIN_UNDO_SET(QString("Create '%1'").arg(xmlname));
   pqPipelineSource* s =
     builder->createSource(xmlgroup, xmlname, server);
   s->rename(source->getSMName());
   END_UNDO_SET();
   vtkTrivialProducer* tp = vtkTrivialProducer::SafeDownCast(s->getProxy()->GetClientSideObject());
-  tp->SetOutput(d->GetOutput());
+  tp->SetOutput(dobj);
+
+  // QString xmlname("TrivialProducer");
+  // QString xmlgroup("sources");
+  BEGIN_UNDO_SET(QString("Create '%1'").arg(xmlname));
+  pqPipelineSource* s1 =
+    builder->createSource(xmlgroup, xmlname, server);
+  s->rename(source->getSMName() + QString("_Orig"));
+  END_UNDO_SET();
+  vtkTrivialProducer* tp1 = vtkTrivialProducer::SafeDownCast(s1->getProxy()->GetClientSideObject());
+  tp1->SetOutput(d->GetOutput());
 }
 
 //-----------------------------------------------------------------------------
